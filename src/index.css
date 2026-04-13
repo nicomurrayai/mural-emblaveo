@@ -1,0 +1,48 @@
+@import url('https://fonts.googleapis.com/css2?family=Azeret+Mono:wght@400;500&family=Manrope:wght@400;500;700;800&family=Unbounded:wght@400;600;700&display=swap');
+
+:root {
+  color-scheme: dark;
+  --bg-ink: #04050f;
+  --panel-line: rgba(177, 190, 255, 0.14);
+  --brand-navy: #1e1d46;
+  --brand-green: #1cad70;
+  --text-main: #edf0fb;
+  --font-body: 'Manrope', sans-serif;
+  --font-display: 'Unbounded', sans-serif;
+  --font-mono: 'Azeret Mono', monospace;
+  font-family: var(--font-body);
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  background: var(--bg-ink);
+  color: var(--text-main);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  width: 100%;
+  min-height: 100%;
+  margin: 0;
+}
+
+body {
+  overflow: hidden;
+  background: var(--bg-ink);
+}
+
+button,
+input,
+textarea,
+select {
+  font: inherit;
+}
+
+a {
+  color: inherit;
+}
