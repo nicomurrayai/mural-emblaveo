@@ -82,21 +82,6 @@ function App() {
       />
 
       <section className="mural-shell__hud" aria-label="Estado del mural">
-        <div className="mural-badge">
-          <span
-            className={`mural-badge__dot mural-badge__dot--${connectionState}`}
-            aria-hidden="true"
-          />
-          <div>
-            <p className="mural-badge__eyebrow">
-              {isDemo ? 'Modo demo local' : 'Supabase en vivo'}
-            </p>
-            <h1 className="mural-badge__title">Logo en construcción</h1>
-            <p className="mural-badge__copy">
-              El mosaico se completa a medida que entran nuevas imágenes.
-            </p>
-          </div>
-        </div>
 
         <div className="mural-progress">
           <div className="mural-progress__heading">
