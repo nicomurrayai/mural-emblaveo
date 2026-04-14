@@ -25,6 +25,8 @@ export type MosaicAsset = {
 
 export type MosaicCell = {
   id: string
+  row: number
+  column: number
   x: number
   y: number
   width: number
@@ -44,6 +46,8 @@ export type LogoGrid = {
 }
 
 export type MosaicPlacement = {
+  placementId: string
+  kind: 'original' | 'reused'
   asset: MosaicAsset
   cell: MosaicCell
   slot: number

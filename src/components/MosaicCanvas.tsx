@@ -9,7 +9,10 @@ const PHASE_APPEAR_END = 0.12
 const PHASE_HOLD_END = 0.38
 const STAGGER_MS = 220
 const STAGGER_BATCH_THRESHOLD = 8
-const CENTER_SIZE_RATIO = 0.28
+const CENTER_SIZE_RATIO = 0.42
+const FILL_REVEAL_DURATION_MS = 320
+const FILL_WAVE_DELAY_MS = 70
+const FILL_REVEAL_WAVE_DIVISOR = 24
 
 type MosaicCanvasProps = {
   grid: LogoGrid | null
@@ -21,6 +24,12 @@ type ImageCacheEntry =
   | { status: 'loading' }
   | { status: 'error' }
   | { status: 'ready'; image: HTMLImageElement }
+
+type RevealConfig = {
+  revealAt: number
+  durationMs: number
+  mode: 'center' | 'local'
+}
 
 type Size = {
   width: number
@@ -53,6 +62,30 @@ function easeInOutCubic(value: number) {
 
 function lerp(from: number, to: number, t: number) {
   return from + (to - from) * t
+}
+
+function compareFillRevealOrder(
+  left: MosaicPlacement,
+  right: MosaicPlacement,
+  grid: LogoGrid | null,
+) {
+  const centerRow = ((grid?.rows ?? 1) - 1) / 2
+  const centerColumn = ((grid?.columns ?? 1) - 1) / 2
+  const leftDistance =
+    (left.cell.row - centerRow) ** 2 + (left.cell.column - centerColumn) ** 2
+  const rightDistance =
+    (right.cell.row - centerRow) ** 2 +
+    (right.cell.column - centerColumn) ** 2
+
+  if (leftDistance !== rightDistance) {
+    return leftDistance - rightDistance
+  }
+
+  if (left.cell.row !== right.cell.row) {
+    return left.cell.row - right.cell.row
+  }
+
+  return left.cell.column - right.cell.column
 }
 
 function drawBackdrop(
@@ -170,7 +203,7 @@ export function MosaicCanvas({
 }: MosaicCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null)
   const imageCacheRef = useRef<Map<string, ImageCacheEntry>>(new Map())
-  const revealTimesRef = useRef<Map<string, number>>(new Map())
+  const revealConfigsRef = useRef<Map<string, RevealConfig>>(new Map())
   const hasInitialSnapshotRef = useRef(false)
   const sceneRef = useRef<{
     grid: LogoGrid | null
@@ -189,42 +222,77 @@ export function MosaicCanvas({
   useEffect(() => {
     sceneRef.current.placements = deferredPlacements
 
+    const activePlacementIds = new Set(
+      deferredPlacements.map((placement) => placement.placementId),
+    )
+
+    for (const placementId of revealConfigsRef.current.keys()) {
+      if (!activePlacementIds.has(placementId)) {
+        revealConfigsRef.current.delete(placementId)
+      }
+    }
+
     const now = performance.now()
-    const freshPlacements: MosaicPlacement[] = []
+    const freshOriginals: MosaicPlacement[] = []
+    const freshReused: MosaicPlacement[] = []
 
     for (const placement of deferredPlacements) {
-      if (!revealTimesRef.current.has(placement.asset.photoId)) {
-        freshPlacements.push(placement)
+      if (revealConfigsRef.current.has(placement.placementId)) {
+        continue
       }
-    }
 
-    if (freshPlacements.length === 0) {
-      return
-    }
-
-    const isInitialSnapshot = !hasInitialSnapshotRef.current
-    const isOversizedBatch = freshPlacements.length > STAGGER_BATCH_THRESHOLD
-
-    if (isInitialSnapshot || isOversizedBatch) {
-      // Initial snapshot on mount OR large realtime burst: render instantly
-      for (const placement of freshPlacements) {
-        revealTimesRef.current.set(
-          placement.asset.photoId,
-          now - REVEAL_DURATION_MS,
-        )
+      if (placement.kind === 'reused') {
+        freshReused.push(placement)
+        continue
       }
-    } else {
-      // Subsequent small batch: stagger so animations don't collide at the center
-      freshPlacements.forEach((placement, index) => {
-        revealTimesRef.current.set(
-          placement.asset.photoId,
-          now + index * STAGGER_MS,
-        )
-      })
+
+      freshOriginals.push(placement)
     }
 
-    hasInitialSnapshotRef.current = true
-  }, [deferredPlacements])
+    if (freshOriginals.length > 0) {
+      const isInitialSnapshot = !hasInitialSnapshotRef.current
+      const isOversizedBatch = freshOriginals.length > STAGGER_BATCH_THRESHOLD
+
+      if (isInitialSnapshot || isOversizedBatch) {
+        for (const placement of freshOriginals) {
+          revealConfigsRef.current.set(placement.placementId, {
+            revealAt: now - REVEAL_DURATION_MS,
+            durationMs: REVEAL_DURATION_MS,
+            mode: 'center',
+          })
+        }
+      } else {
+        freshOriginals.forEach((placement, index) => {
+          revealConfigsRef.current.set(placement.placementId, {
+            revealAt: now + index * STAGGER_MS,
+            durationMs: REVEAL_DURATION_MS,
+            mode: 'center',
+          })
+        })
+      }
+
+      hasInitialSnapshotRef.current = true
+    }
+
+    if (freshReused.length > 0) {
+      const waveSize = Math.max(
+        1,
+        Math.ceil(freshReused.length / FILL_REVEAL_WAVE_DIVISOR),
+      )
+
+      freshReused
+        .sort((left, right) => compareFillRevealOrder(left, right, grid))
+        .forEach((placement, index) => {
+          const waveIndex = Math.floor(index / waveSize)
+
+          revealConfigsRef.current.set(placement.placementId, {
+            revealAt: now + waveIndex * FILL_WAVE_DELAY_MS,
+            durationMs: FILL_REVEAL_DURATION_MS,
+            mode: 'local',
+          })
+        })
+    }
+  }, [deferredPlacements, grid])
 
   useEffect(() => {
     for (const placement of deferredPlacements) {
@@ -291,8 +359,8 @@ export function MosaicCanvas({
     const fittedLogo = containSize(
       currentGrid.width,
       currentGrid.height,
-      viewportWidth * 0.9,
-      viewportHeight * 0.54,
+      viewportWidth * 0.98,
+      viewportHeight * 0.78,
     )
     const offsetX = (viewportWidth - fittedLogo.width) / 2
     const offsetY = (viewportHeight - fittedLogo.height) / 2
@@ -320,26 +388,33 @@ export function MosaicCanvas({
     const animatingPlacements: Array<{
       placement: MosaicPlacement
       progress: number
+      mode: RevealConfig['mode']
     }> = []
 
     for (const placement of sceneRef.current.placements) {
-      const revealAt =
-        revealTimesRef.current.get(placement.asset.photoId) ?? now
-      const elapsed = now - revealAt
+      const revealConfig = revealConfigsRef.current.get(placement.placementId) ?? {
+        revealAt: now - REVEAL_DURATION_MS,
+        durationMs:
+          placement.kind === 'reused'
+            ? FILL_REVEAL_DURATION_MS
+            : REVEAL_DURATION_MS,
+        mode: placement.kind === 'reused' ? 'local' : 'center',
+      }
+      const elapsed = now - revealConfig.revealAt
 
-      if (elapsed >= REVEAL_DURATION_MS) {
+      if (elapsed >= revealConfig.durationMs) {
         settledPlacements.push(placement)
         continue
       }
 
       if (elapsed < 0) {
-        // Still waiting for its stagger slot — render nothing yet
         continue
       }
 
       animatingPlacements.push({
         placement,
-        progress: elapsed / REVEAL_DURATION_MS,
+        progress: elapsed / revealConfig.durationMs,
+        mode: revealConfig.mode,
       })
     }
 
@@ -398,7 +473,6 @@ export function MosaicCanvas({
       context.restore()
     }
 
-    // Draw already-settled placements first so animating ones render on top
     for (const placement of settledPlacements) {
       const baseX = offsetX + placement.cell.x * scaleX
       const baseY = offsetY + placement.cell.y * scaleY
@@ -408,16 +482,11 @@ export function MosaicCanvas({
       drawPlacementAt(placement, baseX, baseY, baseWidth, baseHeight, 1, false)
     }
 
-    // Draw animating placements (center → fly to cell)
-    for (const { placement, progress } of animatingPlacements) {
+    for (const { placement, progress, mode } of animatingPlacements) {
       const baseX = offsetX + placement.cell.x * scaleX
       const baseY = offsetY + placement.cell.y * scaleY
       const baseWidth = placement.cell.width * scaleX
       const baseHeight = placement.cell.height * scaleY
-
-      const aspectRatio = placement.asset.aspectRatio || 1
-      const bigWidth = aspectRatio >= 1 ? bigSize : bigSize * aspectRatio
-      const bigHeight = aspectRatio >= 1 ? bigSize / aspectRatio : bigSize
 
       let drawX: number
       let drawY: number
@@ -425,34 +494,46 @@ export function MosaicCanvas({
       let drawHeight: number
       let alpha: number
 
-      if (progress < PHASE_APPEAR_END) {
-        // Phase 1: pop in at the center
-        const localT = progress / PHASE_APPEAR_END
-        const eased = easeOutCubic(localT)
-        const scale = 0.5 + eased * 0.5
-        drawWidth = bigWidth * scale
-        drawHeight = bigHeight * scale
-        drawX = centerX - drawWidth / 2
-        drawY = centerY - drawHeight / 2
+      if (mode === 'local') {
+        const eased = easeOutCubic(progress)
+        const scale = 0.92 + eased * 0.08
+
+        drawWidth = baseWidth * scale
+        drawHeight = baseHeight * scale
+        drawX = baseX + (baseWidth - drawWidth) / 2
+        drawY = baseY + (baseHeight - drawHeight) / 2
         alpha = eased
-      } else if (progress < PHASE_HOLD_END) {
-        // Phase 2: hold at the center so the viewer can see it
-        drawWidth = bigWidth
-        drawHeight = bigHeight
-        drawX = centerX - drawWidth / 2
-        drawY = centerY - drawHeight / 2
-        alpha = 1
       } else {
-        // Phase 3: fly from the center into the target cell
-        const localT = (progress - PHASE_HOLD_END) / (1 - PHASE_HOLD_END)
-        const eased = easeInOutCubic(localT)
-        drawWidth = lerp(bigWidth, baseWidth, eased)
-        drawHeight = lerp(bigHeight, baseHeight, eased)
-        const currentCenterX = lerp(centerX, baseX + baseWidth / 2, eased)
-        const currentCenterY = lerp(centerY, baseY + baseHeight / 2, eased)
-        drawX = currentCenterX - drawWidth / 2
-        drawY = currentCenterY - drawHeight / 2
-        alpha = 1
+        const aspectRatio = placement.asset.aspectRatio || 1
+        const bigWidth = aspectRatio >= 1 ? bigSize : bigSize * aspectRatio
+        const bigHeight = aspectRatio >= 1 ? bigSize / aspectRatio : bigSize
+
+        if (progress < PHASE_APPEAR_END) {
+          const localT = progress / PHASE_APPEAR_END
+          const eased = easeOutCubic(localT)
+          const scale = 0.5 + eased * 0.5
+          drawWidth = bigWidth * scale
+          drawHeight = bigHeight * scale
+          drawX = centerX - drawWidth / 2
+          drawY = centerY - drawHeight / 2
+          alpha = eased
+        } else if (progress < PHASE_HOLD_END) {
+          drawWidth = bigWidth
+          drawHeight = bigHeight
+          drawX = centerX - drawWidth / 2
+          drawY = centerY - drawHeight / 2
+          alpha = 1
+        } else {
+          const localT = (progress - PHASE_HOLD_END) / (1 - PHASE_HOLD_END)
+          const eased = easeInOutCubic(localT)
+          drawWidth = lerp(bigWidth, baseWidth, eased)
+          drawHeight = lerp(bigHeight, baseHeight, eased)
+          const currentCenterX = lerp(centerX, baseX + baseWidth / 2, eased)
+          const currentCenterY = lerp(centerY, baseY + baseHeight / 2, eased)
+          drawX = currentCenterX - drawWidth / 2
+          drawY = currentCenterY - drawHeight / 2
+          alpha = 1
+        }
       }
 
       drawPlacementAt(
@@ -462,7 +543,7 @@ export function MosaicCanvas({
         drawWidth,
         drawHeight,
         alpha,
-        progress < 0.92,
+        mode === 'center' ? progress < 0.92 : progress < 0.78,
       )
     }
   })

@@ -179,6 +179,159 @@
   color: rgba(198, 206, 230, 0.76);
 }
 
+.mural-title {
+  position: absolute;
+  top: clamp(1.6rem, 3.5vh, 3rem);
+  left: 0;
+  right: 0;
+  display: flex;
+  justify-content: center;
+  pointer-events: none;
+}
+
+.mural-title__text {
+  margin: 0;
+  padding: 0.7rem 2rem;
+  font-family: Arial, sans-serif;
+  font-size: clamp(1.1rem, 2.4vw, 2rem);
+  font-weight: 650;
+  letter-spacing: -0.03em;
+  text-align: center;
+  color: #f4f6ff;
+  text-shadow:
+    0 0 40px rgba(28, 173, 112, 0.45),
+    0 2px 12px rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  background: linear-gradient(
+    135deg,
+    rgba(8, 11, 28, 0.72),
+    rgba(10, 16, 36, 0.46)
+  );
+  border: 1px solid rgba(177, 190, 255, 0.12);
+  border-radius: 999px;
+  max-width: min(90vw, 72ch);
+}
+
+.mural-footer {
+  position: absolute;
+  bottom: clamp(1.1rem, 3vh, 2rem);
+  left: 50%;
+  translate: -50% 0;
+  width: min(62rem, calc(100vw - 2rem));
+  max-width: calc(100vw - 2rem);
+  pointer-events: none;
+}
+
+.mural-footer__bar {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 0.9rem 1.1rem;
+  pointer-events: auto;
+}
+
+.mural-switch {
+  position: absolute;
+  right: clamp(1rem, 2vw, 1.75rem);
+  bottom: clamp(1rem, 2vw, 1.5rem);
+  z-index: 2;
+  pointer-events: auto;
+}
+
+.mural-footer__switch {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  transition: opacity 180ms ease, filter 180ms ease;
+}
+
+.mural-footer__switch-track {
+  position: relative;
+  display: block;
+  width: 4rem;
+  height: 2.2rem;
+  border-radius: 999px;
+  background: linear-gradient(
+    135deg,
+    rgba(86, 96, 136, 0.82),
+    rgba(45, 53, 82, 0.92)
+  );
+  border: 1px solid rgba(177, 190, 255, 0.18);
+  box-shadow:
+    0 10px 24px rgba(0, 0, 0, 0.24),
+    0 0 0 1px rgba(255, 255, 255, 0.04) inset;
+  transition:
+    background 180ms ease,
+    box-shadow 180ms ease,
+    border-color 180ms ease;
+}
+
+.mural-footer__switch-thumb {
+  position: absolute;
+  top: 50%;
+  left: 0.22rem;
+  width: 1.62rem;
+  height: 1.62rem;
+  border-radius: 50%;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.98), #d7e3ff);
+  box-shadow:
+    0 6px 16px rgba(0, 0, 0, 0.28),
+    0 0 0 1px rgba(255, 255, 255, 0.25) inset;
+  transform: translate(0, -50%);
+  transition:
+    transform 220ms ease,
+    background 180ms ease,
+    box-shadow 180ms ease;
+}
+
+.mural-footer__switch:hover:enabled .mural-footer__switch-track {
+  box-shadow:
+    0 14px 26px rgba(0, 0, 0, 0.28),
+    0 0 0 1px rgba(255, 255, 255, 0.06) inset;
+}
+
+.mural-footer__switch[aria-checked='true'] .mural-footer__switch-track {
+  background:
+    linear-gradient(135deg, rgba(82, 223, 155, 0.95), rgba(28, 173, 112, 0.98)),
+    linear-gradient(135deg, #52df9b, #1cad70);
+  border-color: rgba(132, 244, 185, 0.34);
+  box-shadow:
+    0 12px 26px rgba(28, 173, 112, 0.24),
+    0 0 0 1px rgba(255, 255, 255, 0.1) inset;
+}
+
+.mural-footer__switch[aria-checked='true'] .mural-footer__switch-thumb {
+  transform: translate(1.78rem, -50%);
+}
+
+.mural-footer__switch:focus-visible {
+  outline: none;
+}
+
+.mural-footer__switch:focus-visible .mural-footer__switch-track {
+  box-shadow:
+    0 0 0 3px rgba(132, 244, 185, 0.22),
+    0 12px 26px rgba(0, 0, 0, 0.24),
+    0 0 0 1px rgba(255, 255, 255, 0.08) inset;
+}
+
+.mural-footer__switch:disabled {
+  cursor: default;
+  opacity: 0.5;
+  filter: saturate(0.72);
+}
+
+.mural-footer__logo {
+  height: clamp(3.5rem, 6.8vh, 5.2rem);
+  width: auto;
+  object-fit: contain;
+  opacity: 0.95;
+  filter: drop-shadow(0 4px 18px rgba(0, 0, 0, 0.6));
+  flex-shrink: 0;
+}
+
 .mural-shell__status,
 .mural-shell__toast {
   position: absolute;
@@ -280,6 +433,37 @@
 
   .debug-panel {
     top: auto;
+    right: 0.9rem;
+    bottom: 0.9rem;
+  }
+
+  .mural-footer {
+    bottom: 0.9rem;
+    width: calc(100vw - 1.8rem);
+  }
+
+  .mural-footer__bar {
+    align-items: stretch;
+    padding: 0.9rem;
+  }
+
+  .mural-footer__logo {
+    align-self: center;
+    height: clamp(2.6rem, 5vh, 3.6rem);
+  }
+}
+
+@media (max-width: 680px) {
+  .mural-footer__bar {
+    align-items: center;
+    text-align: center;
+  }
+
+  .mural-footer__logo {
+    align-self: center;
+  }
+
+  .mural-switch {
     right: 0.9rem;
     bottom: 0.9rem;
   }

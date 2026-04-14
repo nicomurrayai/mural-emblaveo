@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import './App.css'
 import logoPrimary from './assets/logo-primary.png'
+import logoPfizer from './assets/logo-pfizer.png'
 import { DebugPanel } from './components/DebugPanel'
 import { MosaicCanvas } from './components/MosaicCanvas'
 import { useMosaicRealtime } from './hooks/useMosaicRealtime'
@@ -13,6 +14,7 @@ function App() {
   const [gridError, setGridError] = useState<string | null>(null)
   const [debugVisible, setDebugVisible] = useState(false)
   const [fps, setFps] = useState(0)
+  const [autoFillEnabled, setAutoFillEnabled] = useState(false)
 
   const { assets, connectionState, errorMessage, isDemo, lastUpdate } =
     useMosaicRealtime()
@@ -60,7 +62,7 @@ function App() {
     }
   }, [])
 
-  const placementState = useMemo(
+  const basePlacementState = useMemo(
     () =>
       logoGrid
         ? buildMosaicPlacements(logoGrid.cells, assets)
@@ -68,9 +70,23 @@ function App() {
     [assets, logoGrid],
   )
 
+  const placementState = useMemo(
+    () =>
+      logoGrid
+        ? buildMosaicPlacements(logoGrid.cells, assets, {
+            autoFillEmpty: autoFillEnabled,
+          })
+        : { cells: [], placements: [] },
+    [assets, autoFillEnabled, logoGrid],
+  )
 
   const activeCellCount = logoGrid?.cells.length ?? 0
+  const emptyCellCount = basePlacementState.cells.filter(
+    (cell) => !cell.occupiedByPhotoId,
+  ).length
   const filledCellCount = placementState.placements.length
+  const canToggleAutoFill =
+    autoFillEnabled || (assets.length > 0 && emptyCellCount > 0)
 
   return (
     <main className="mural-shell">
@@ -81,6 +97,39 @@ function App() {
         onFpsChange={setFps}
       />
 
+      <header className="mural-title">
+        <h1 className="mural-title__text">
+          Súmate a esta nueva era en el tratamiento de infecciones multiresistentes
+        </h1>
+      </header>
+
+      <footer className="mural-footer">
+        <div className="mural-footer__bar">
+          <img
+            src={logoPfizer}
+            alt="Pfizer"
+            className="mural-footer__logo"
+          />
+        </div>
+      </footer>
+
+      <div className="mural-switch">
+        <button
+          type="button"
+          className="mural-footer__switch"
+          onClick={() => {
+            setAutoFillEnabled((current) => !current)
+          }}
+          disabled={!canToggleAutoFill}
+          role="switch"
+          aria-checked={autoFillEnabled}
+          aria-label="Autocompletado del mural"
+        >
+          <span className="mural-footer__switch-track" aria-hidden="true">
+            <span className="mural-footer__switch-thumb" />
+          </span>
+        </button>
+      </div>
 
       {!debugVisible && errorMessage ? (
         <aside className="mural-shell__toast" role="status">

@@ -108,6 +108,8 @@ function generateGrid(
 
       cells.push({
         id: `cell-${row}-${column}`,
+        row,
+        column,
         x,
         y,
         width: cellWidth,

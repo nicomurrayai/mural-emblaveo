@@ -7,11 +7,15 @@ function makeCell(
   red: number,
   green: number,
   blue: number,
+  row = 0,
+  column = 0,
 ): MosaicCell {
   return {
     id,
-    x: 0,
-    y: 0,
+    row,
+    column,
+    x: column,
+    y: row,
     width: 1,
     height: 1,
     targetRgb: { r: red, g: green, b: blue },
@@ -43,8 +47,8 @@ function makeAsset(
 describe('buildMosaicPlacements', () => {
   it('never assigns two assets to the same cell', () => {
     const cells = [
-      makeCell('green-zone', 30, 160, 90),
-      makeCell('blue-zone', 20, 30, 90),
+      makeCell('green-zone', 30, 160, 90, 0, 0),
+      makeCell('blue-zone', 20, 30, 90, 0, 1),
     ]
     const assets = [
       makeAsset('a', 25, 150, 88),
@@ -59,14 +63,94 @@ describe('buildMosaicPlacements', () => {
 
   it('matches an asset to the closest target color', () => {
     const cells = [
-      makeCell('green-zone', 30, 160, 90),
-      makeCell('blue-zone', 20, 30, 90),
+      makeCell('green-zone', 30, 160, 90, 0, 0),
+      makeCell('blue-zone', 20, 30, 90, 0, 1),
     ]
     const asset = makeAsset('green-photo', 35, 156, 94)
 
     const result = buildMosaicPlacements(cells, [asset])
 
     expect(result.placements[0]?.cell.id).toBe('green-zone')
+    expect(result.placements[0]?.kind).toBe('original')
+    expect(result.placements[0]?.placementId).toBe('original:green-photo')
+  })
+
+  it('fills every empty cell with reused assets when autofill is enabled', () => {
+    const cells = [
+      makeCell('cell-0-0', 30, 160, 90, 0, 0),
+      makeCell('cell-0-1', 26, 36, 95, 0, 1),
+      makeCell('cell-1-0', 32, 150, 88, 1, 0),
+    ]
+    const assets = [makeAsset('only-photo', 30, 158, 91)]
+
+    const result = buildMosaicPlacements(cells, assets, {
+      autoFillEmpty: true,
+    })
+
+    expect(result.placements).toHaveLength(cells.length)
+    expect(result.placements.filter((placement) => placement.kind === 'reused'))
+      .toHaveLength(2)
+    expect(result.cells.every((cell) => cell.occupiedByPhotoId)).toBe(true)
+  })
+
+  it('only creates reused placements from existing assets and keeps ids unique', () => {
+    const cells = [
+      makeCell('cell-0-0', 30, 160, 90, 0, 0),
+      makeCell('cell-0-1', 31, 159, 91, 0, 1),
+      makeCell('cell-1-0', 29, 161, 89, 1, 0),
+    ]
+    const assets = [makeAsset('photo-a', 30, 160, 90)]
+
+    const result = buildMosaicPlacements(cells, assets, {
+      autoFillEmpty: true,
+    })
+    const placementIds = result.placements.map((placement) => placement.placementId)
+    const reusedPhotoIds = result.placements
+      .filter((placement) => placement.kind === 'reused')
+      .map((placement) => placement.asset.photoId)
+
+    expect(new Set(placementIds).size).toBe(placementIds.length)
+    expect(reusedPhotoIds).toEqual(['photo-a', 'photo-a'])
+  })
+
+  it('spreads reused placements to avoid obvious adjacent repetition when choices are similar', () => {
+    const cells = [
+      makeCell('cell-0-0', 110, 110, 110, 0, 0),
+      makeCell('cell-0-1', 110, 110, 110, 0, 1),
+      makeCell('cell-0-2', 110, 110, 110, 0, 2),
+      makeCell('cell-0-3', 110, 110, 110, 0, 3),
+    ]
+    const assets = [
+      makeAsset('photo-a', 110, 110, 110),
+      makeAsset('photo-b', 110, 110, 110, '2026-04-13T18:05:00.000Z'),
+    ]
+
+    const result = buildMosaicPlacements(cells, assets, {
+      autoFillEmpty: true,
+    })
+    const orderedPhotoIds = result.placements
+      .sort((left, right) => left.cell.column - right.cell.column)
+      .map((placement) => placement.asset.photoId)
+
+    expect(orderedPhotoIds).toEqual(['photo-a', 'photo-b', 'photo-a', 'photo-b'])
+  })
+
+  it('returns the same placement order for the same inputs', () => {
+    const cells = [
+      makeCell('cell-0-0', 30, 160, 90, 0, 0),
+      makeCell('cell-0-1', 20, 30, 90, 0, 1),
+      makeCell('cell-0-2', 120, 92, 30, 0, 2),
+      makeCell('cell-1-0', 22, 32, 94, 1, 0),
+    ]
+    const assets = [
+      makeAsset('photo-a', 30, 158, 91),
+      makeAsset('photo-b', 20, 32, 92, '2026-04-13T18:05:00.000Z'),
+    ]
+
+    const first = buildMosaicPlacements(cells, assets, { autoFillEmpty: true })
+    const second = buildMosaicPlacements(cells, assets, { autoFillEmpty: true })
+
+    expect(first.placements).toEqual(second.placements)
   })
 })
 
