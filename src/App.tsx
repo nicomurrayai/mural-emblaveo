@@ -68,9 +68,9 @@ function App() {
     [assets, logoGrid],
   )
 
+
   const activeCellCount = logoGrid?.cells.length ?? 0
   const filledCellCount = placementState.placements.length
-  const progress = activeCellCount > 0 ? filledCellCount / activeCellCount : 0
 
   return (
     <main className="mural-shell">
