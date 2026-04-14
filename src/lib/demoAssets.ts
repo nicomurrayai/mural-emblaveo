@@ -34,7 +34,7 @@ function tileSvg(color: RGB, index: number) {
   `)}`
 }
 
-export function createDemoAssets(total = 260): MosaicAsset[] {
+export function createDemoAssets(total = 1000): MosaicAsset[] {
   const baseDate = Date.parse('2026-04-13T18:00:00.000Z')
 
   return Array.from({ length: total }, (_, index) => {

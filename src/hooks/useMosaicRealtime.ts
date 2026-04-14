@@ -120,7 +120,6 @@ export function useMosaicRealtime(): UseMosaicRealtimeResult {
           event: '*',
           schema: 'public',
           table: config.assetTable,
-          filter: 'status=eq.ready',
         },
         (payload) => {
           const asset = adaptAssetRow(payload.new as Record<string, unknown>)

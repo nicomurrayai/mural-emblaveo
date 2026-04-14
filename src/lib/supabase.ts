@@ -5,56 +5,32 @@ import type { MosaicAsset } from '../types/mosaic'
 
 type RawAssetRow = Record<string, unknown>
 
-function asFiniteNumber(value: unknown, fallback = 0) {
-  if (typeof value === 'number' && Number.isFinite(value)) {
-    return value
-  }
-
-  if (typeof value === 'string') {
-    const parsed = Number.parseFloat(value)
-
-    if (Number.isFinite(parsed)) {
-      return parsed
-    }
-  }
-
-  return fallback
-}
-
 function asString(value: unknown) {
   return typeof value === 'string' ? value : null
 }
 
+// Neutral default color used when the table has no avg_r/g/b columns
+const DEFAULT_RGB = { r: 128, g: 128, b: 128 }
+
 export function adaptAssetRow(row: RawAssetRow): MosaicAsset | null {
-  const photoId = asString(row.photo_id)
-  const thumbUrl = asString(row.thumb_url)
-  const processedAt = asString(row.processed_at)
+  const photoId = asString(row.id)
+  const thumbUrl = asString(row.image_url)
   const createdAt = asString(row.created_at)
-  const status = asString(row.status)
 
-  if (!photoId || !thumbUrl || !processedAt || !createdAt || !status) {
+  if (!photoId || !thumbUrl || !createdAt) {
     return null
-  }
-
-  const avgRgb = {
-    r: Math.round(asFiniteNumber(row.avg_r)),
-    g: Math.round(asFiniteNumber(row.avg_g)),
-    b: Math.round(asFiniteNumber(row.avg_b)),
   }
 
   return {
     photoId,
     thumbUrl,
-    avgRgb,
-    luma: asFiniteNumber(row.luma, lumaFromRgb(avgRgb)),
-    aspectRatio: asFiniteNumber(row.aspect_ratio, 1),
-    processedAt,
+    avgRgb: DEFAULT_RGB,
+    luma: lumaFromRgb(DEFAULT_RGB),
+    aspectRatio: 1,
+    processedAt: createdAt,
     createdAt,
-    status:
-      status === 'ready' || status === 'processing' || status === 'failed'
-        ? status
-        : 'ready',
-    sourceImageUrl: asString(row.source_image_url),
+    status: 'ready',
+    sourceImageUrl: thumbUrl,
   }
 }
 
@@ -82,10 +58,7 @@ export async function fetchReadyAssets(
 ) {
   const { data, error } = await client
     .from(env.assetTable)
-    .select(
-      'photo_id, thumb_url, avg_r, avg_g, avg_b, luma, aspect_ratio, processed_at, created_at, status, source_image_url',
-    )
-    .eq('status', 'ready')
+    .select('id, image_url, created_at')
     .order('created_at', { ascending: true })
     .limit(env.fetchLimit)
 

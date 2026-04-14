@@ -4,7 +4,12 @@ import type { LogoGrid, MosaicPlacement, RGB } from '../types/mosaic'
 
 const FRAME_INTERVAL_MS = 1000 / 30
 const MAX_DEVICE_PIXEL_RATIO = 1.5
-const REVEAL_DURATION_MS = 720
+const REVEAL_DURATION_MS = 2200
+const PHASE_APPEAR_END = 0.12
+const PHASE_HOLD_END = 0.38
+const STAGGER_MS = 220
+const STAGGER_BATCH_THRESHOLD = 8
+const CENTER_SIZE_RATIO = 0.28
 
 type MosaicCanvasProps = {
   grid: LogoGrid | null
@@ -38,6 +43,16 @@ function containSize(
 
 function easeOutCubic(value: number) {
   return 1 - (1 - value) ** 3
+}
+
+function easeInOutCubic(value: number) {
+  return value < 0.5
+    ? 4 * value * value * value
+    : 1 - Math.pow(-2 * value + 2, 3) / 2
+}
+
+function lerp(from: number, to: number, t: number) {
+  return from + (to - from) * t
 }
 
 function drawBackdrop(
@@ -156,6 +171,7 @@ export function MosaicCanvas({
   const canvasRef = useRef<HTMLCanvasElement | null>(null)
   const imageCacheRef = useRef<Map<string, ImageCacheEntry>>(new Map())
   const revealTimesRef = useRef<Map<string, number>>(new Map())
+  const hasInitialSnapshotRef = useRef(false)
   const sceneRef = useRef<{
     grid: LogoGrid | null
     placements: MosaicPlacement[]
@@ -174,11 +190,40 @@ export function MosaicCanvas({
     sceneRef.current.placements = deferredPlacements
 
     const now = performance.now()
+    const freshPlacements: MosaicPlacement[] = []
+
     for (const placement of deferredPlacements) {
       if (!revealTimesRef.current.has(placement.asset.photoId)) {
-        revealTimesRef.current.set(placement.asset.photoId, now)
+        freshPlacements.push(placement)
       }
     }
+
+    if (freshPlacements.length === 0) {
+      return
+    }
+
+    const isInitialSnapshot = !hasInitialSnapshotRef.current
+    const isOversizedBatch = freshPlacements.length > STAGGER_BATCH_THRESHOLD
+
+    if (isInitialSnapshot || isOversizedBatch) {
+      // Initial snapshot on mount OR large realtime burst: render instantly
+      for (const placement of freshPlacements) {
+        revealTimesRef.current.set(
+          placement.asset.photoId,
+          now - REVEAL_DURATION_MS,
+        )
+      }
+    } else {
+      // Subsequent small batch: stagger so animations don't collide at the center
+      freshPlacements.forEach((placement, index) => {
+        revealTimesRef.current.set(
+          placement.asset.photoId,
+          now + index * STAGGER_MS,
+        )
+      })
+    }
+
+    hasInitialSnapshotRef.current = true
   }, [deferredPlacements])
 
   useEffect(() => {
@@ -267,22 +312,53 @@ export function MosaicCanvas({
       )
     }
 
+    const centerX = viewportWidth / 2
+    const centerY = viewportHeight / 2
+    const bigSize = Math.min(viewportWidth, viewportHeight) * CENTER_SIZE_RATIO
+
+    const settledPlacements: MosaicPlacement[] = []
+    const animatingPlacements: Array<{
+      placement: MosaicPlacement
+      progress: number
+    }> = []
+
     for (const placement of sceneRef.current.placements) {
       const revealAt =
-        revealTimesRef.current.get(placement.asset.photoId) ?? performance.now()
-      const progress = Math.min(1, (now - revealAt) / REVEAL_DURATION_MS)
-      const eased = easeOutCubic(progress)
-      const baseX = offsetX + placement.cell.x * scaleX
-      const baseY = offsetY + placement.cell.y * scaleY
-      const baseWidth = placement.cell.width * scaleX
-      const baseHeight = placement.cell.height * scaleY
-      const animatedWidth = baseWidth * (0.68 + eased * 0.32)
-      const animatedHeight = baseHeight * (0.68 + eased * 0.32)
-      const drawX = baseX + (baseWidth - animatedWidth) / 2
-      const drawY = baseY + (baseHeight - animatedHeight) / 2
+        revealTimesRef.current.get(placement.asset.photoId) ?? now
+      const elapsed = now - revealAt
 
+      if (elapsed >= REVEAL_DURATION_MS) {
+        settledPlacements.push(placement)
+        continue
+      }
+
+      if (elapsed < 0) {
+        // Still waiting for its stagger slot — render nothing yet
+        continue
+      }
+
+      animatingPlacements.push({
+        placement,
+        progress: elapsed / REVEAL_DURATION_MS,
+      })
+    }
+
+    const drawPlacementAt = (
+      placement: MosaicPlacement,
+      drawX: number,
+      drawY: number,
+      drawWidth: number,
+      drawHeight: number,
+      alpha: number,
+      withGlow: boolean,
+    ) => {
       context.save()
-      context.globalAlpha = 0.2 + eased * 0.8
+      context.globalAlpha = alpha
+
+      if (withGlow) {
+        context.shadowBlur = 32
+        context.shadowColor = 'rgba(120, 180, 255, 0.45)'
+      }
 
       const cachedImage = imageCacheRef.current.get(placement.asset.thumbUrl)
 
@@ -291,31 +367,103 @@ export function MosaicCanvas({
           cachedImage.image,
           drawX,
           drawY,
-          animatedWidth,
-          animatedHeight,
+          drawWidth,
+          drawHeight,
         )
       } else {
         drawTileFallback(
           context,
           drawX,
           drawY,
-          animatedWidth,
-          animatedHeight,
+          drawWidth,
+          drawHeight,
           placement.asset.avgRgb,
         )
       }
 
+      context.shadowBlur = 0
       context.fillStyle = rgbToCss(placement.cell.targetRgb, 0.06)
-      context.fillRect(drawX, drawY, animatedWidth, animatedHeight)
-      context.strokeStyle = rgbToCss(brighten(placement.cell.targetRgb, 0.16), 0.2)
+      context.fillRect(drawX, drawY, drawWidth, drawHeight)
+      context.strokeStyle = rgbToCss(
+        brighten(placement.cell.targetRgb, 0.16),
+        0.2,
+      )
       context.lineWidth = 0.9
       context.strokeRect(
         drawX + 0.45,
         drawY + 0.45,
-        animatedWidth - 0.9,
-        animatedHeight - 0.9,
+        drawWidth - 0.9,
+        drawHeight - 0.9,
       )
       context.restore()
+    }
+
+    // Draw already-settled placements first so animating ones render on top
+    for (const placement of settledPlacements) {
+      const baseX = offsetX + placement.cell.x * scaleX
+      const baseY = offsetY + placement.cell.y * scaleY
+      const baseWidth = placement.cell.width * scaleX
+      const baseHeight = placement.cell.height * scaleY
+
+      drawPlacementAt(placement, baseX, baseY, baseWidth, baseHeight, 1, false)
+    }
+
+    // Draw animating placements (center → fly to cell)
+    for (const { placement, progress } of animatingPlacements) {
+      const baseX = offsetX + placement.cell.x * scaleX
+      const baseY = offsetY + placement.cell.y * scaleY
+      const baseWidth = placement.cell.width * scaleX
+      const baseHeight = placement.cell.height * scaleY
+
+      const aspectRatio = placement.asset.aspectRatio || 1
+      const bigWidth = aspectRatio >= 1 ? bigSize : bigSize * aspectRatio
+      const bigHeight = aspectRatio >= 1 ? bigSize / aspectRatio : bigSize
+
+      let drawX: number
+      let drawY: number
+      let drawWidth: number
+      let drawHeight: number
+      let alpha: number
+
+      if (progress < PHASE_APPEAR_END) {
+        // Phase 1: pop in at the center
+        const localT = progress / PHASE_APPEAR_END
+        const eased = easeOutCubic(localT)
+        const scale = 0.5 + eased * 0.5
+        drawWidth = bigWidth * scale
+        drawHeight = bigHeight * scale
+        drawX = centerX - drawWidth / 2
+        drawY = centerY - drawHeight / 2
+        alpha = eased
+      } else if (progress < PHASE_HOLD_END) {
+        // Phase 2: hold at the center so the viewer can see it
+        drawWidth = bigWidth
+        drawHeight = bigHeight
+        drawX = centerX - drawWidth / 2
+        drawY = centerY - drawHeight / 2
+        alpha = 1
+      } else {
+        // Phase 3: fly from the center into the target cell
+        const localT = (progress - PHASE_HOLD_END) / (1 - PHASE_HOLD_END)
+        const eased = easeInOutCubic(localT)
+        drawWidth = lerp(bigWidth, baseWidth, eased)
+        drawHeight = lerp(bigHeight, baseHeight, eased)
+        const currentCenterX = lerp(centerX, baseX + baseWidth / 2, eased)
+        const currentCenterY = lerp(centerY, baseY + baseHeight / 2, eased)
+        drawX = currentCenterX - drawWidth / 2
+        drawY = currentCenterY - drawHeight / 2
+        alpha = 1
+      }
+
+      drawPlacementAt(
+        placement,
+        drawX,
+        drawY,
+        drawWidth,
+        drawHeight,
+        alpha,
+        progress < 0.92,
+      )
     }
   })
 

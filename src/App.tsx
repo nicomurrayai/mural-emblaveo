@@ -81,30 +81,6 @@ function App() {
         onFpsChange={setFps}
       />
 
-      <section className="mural-shell__hud" aria-label="Estado del mural">
-
-        <div className="mural-progress">
-          <div className="mural-progress__heading">
-            <span className="mural-progress__label">
-              {filledCellCount} / {activeCellCount || '...'} tiles activas
-            </span>
-            <strong>{Math.round(progress * 100)}%</strong>
-          </div>
-
-          <div className="mural-progress__track" aria-hidden="true">
-            <div
-              className="mural-progress__bar"
-              style={{ width: `${Math.max(progress * 100, 3)}%` }}
-            />
-          </div>
-
-          <p className="mural-progress__hint">
-            {isDemo
-              ? 'Definí tus variables VITE_* para pasar del demo al feed real.'
-              : 'Las imágenes procesadas se incorporan automáticamente al mural.'}
-          </p>
-        </div>
-      </section>
 
       {!debugVisible && errorMessage ? (
         <aside className="mural-shell__toast" role="status">
