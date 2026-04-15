@@ -6,7 +6,9 @@
       "Bash(vercel project:*)",
       "Bash(vercel env:*)",
       "Bash(vercel link:*)",
-      "Bash(vercel --prod --yes)"
+      "Bash(vercel --prod --yes)",
+      "Bash(npx eslint:*)",
+      "Bash(npm test:*)"
     ]
   }
 }

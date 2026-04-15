@@ -117,7 +117,7 @@ export function useMosaicRealtime(): UseMosaicRealtimeResult {
       .on(
         'postgres_changes',
         {
-          event: '*',
+          event: 'INSERT',
           schema: 'public',
           table: config.assetTable,
         },

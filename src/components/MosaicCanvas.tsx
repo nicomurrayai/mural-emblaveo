@@ -5,11 +5,10 @@ import type { LogoGrid, MosaicPlacement, RGB } from '../types/mosaic'
 const FRAME_INTERVAL_MS = 1000 / 30
 const MAX_DEVICE_PIXEL_RATIO = 1.5
 const REVEAL_DURATION_MS = 2200
-const PHASE_APPEAR_END = 0.12
-const PHASE_HOLD_END = 0.38
-const STAGGER_MS = 220
-const STAGGER_BATCH_THRESHOLD = 8
-const CENTER_SIZE_RATIO = 0.42
+const PHASE_APPEAR_END = 0.16
+const PHASE_HOLD_END = 0.42
+const STAGGER_MS = 280
+const CENTER_SIZE_RATIO = 0.48
 const FILL_REVEAL_DURATION_MS = 320
 const FILL_WAVE_DELAY_MS = 70
 const FILL_REVEAL_WAVE_DIVISOR = 24
@@ -58,6 +57,12 @@ function easeInOutCubic(value: number) {
   return value < 0.5
     ? 4 * value * value * value
     : 1 - Math.pow(-2 * value + 2, 3) / 2
+}
+
+function easeOutBack(value: number) {
+  const c1 = 1.70158
+  const c3 = c1 + 1
+  return 1 + c3 * (value - 1) ** 3 + c1 * (value - 1) ** 2
 }
 
 function lerp(from: number, to: number, t: number) {
@@ -204,7 +209,7 @@ export function MosaicCanvas({
   const canvasRef = useRef<HTMLCanvasElement | null>(null)
   const imageCacheRef = useRef<Map<string, ImageCacheEntry>>(new Map())
   const revealConfigsRef = useRef<Map<string, RevealConfig>>(new Map())
-  const hasInitialSnapshotRef = useRef(false)
+  const firstEffectRanRef = useRef(false)
   const sceneRef = useRef<{
     grid: LogoGrid | null
     placements: MosaicPlacement[]
@@ -233,6 +238,24 @@ export function MosaicCanvas({
     }
 
     const now = performance.now()
+
+    if (!firstEffectRanRef.current) {
+      firstEffectRanRef.current = true
+
+      for (const placement of deferredPlacements) {
+        revealConfigsRef.current.set(placement.placementId, {
+          revealAt: now - REVEAL_DURATION_MS,
+          durationMs:
+            placement.kind === 'reused'
+              ? FILL_REVEAL_DURATION_MS
+              : REVEAL_DURATION_MS,
+          mode: placement.kind === 'reused' ? 'local' : 'center',
+        })
+      }
+
+      return
+    }
+
     const freshOriginals: MosaicPlacement[] = []
     const freshReused: MosaicPlacement[] = []
 
@@ -249,30 +272,13 @@ export function MosaicCanvas({
       freshOriginals.push(placement)
     }
 
-    if (freshOriginals.length > 0) {
-      const isInitialSnapshot = !hasInitialSnapshotRef.current
-      const isOversizedBatch = freshOriginals.length > STAGGER_BATCH_THRESHOLD
-
-      if (isInitialSnapshot || isOversizedBatch) {
-        for (const placement of freshOriginals) {
-          revealConfigsRef.current.set(placement.placementId, {
-            revealAt: now - REVEAL_DURATION_MS,
-            durationMs: REVEAL_DURATION_MS,
-            mode: 'center',
-          })
-        }
-      } else {
-        freshOriginals.forEach((placement, index) => {
-          revealConfigsRef.current.set(placement.placementId, {
-            revealAt: now + index * STAGGER_MS,
-            durationMs: REVEAL_DURATION_MS,
-            mode: 'center',
-          })
-        })
-      }
-
-      hasInitialSnapshotRef.current = true
-    }
+    freshOriginals.forEach((placement, index) => {
+      revealConfigsRef.current.set(placement.placementId, {
+        revealAt: now + index * STAGGER_MS,
+        durationMs: REVEAL_DURATION_MS,
+        mode: 'center',
+      })
+    })
 
     if (freshReused.length > 0) {
       const waveSize = Math.max(
@@ -425,14 +431,14 @@ export function MosaicCanvas({
       drawWidth: number,
       drawHeight: number,
       alpha: number,
-      withGlow: boolean,
+      glowIntensity: number,
     ) => {
       context.save()
       context.globalAlpha = alpha
 
-      if (withGlow) {
-        context.shadowBlur = 32
-        context.shadowColor = 'rgba(120, 180, 255, 0.45)'
+      if (glowIntensity > 0) {
+        context.shadowBlur = 32 + glowIntensity * 32
+        context.shadowColor = `rgba(140, 200, 255, ${0.35 + glowIntensity * 0.4})`
       }
 
       const cachedImage = imageCacheRef.current.get(placement.asset.thumbUrl)
@@ -479,7 +485,7 @@ export function MosaicCanvas({
       const baseWidth = placement.cell.width * scaleX
       const baseHeight = placement.cell.height * scaleY
 
-      drawPlacementAt(placement, baseX, baseY, baseWidth, baseHeight, 1, false)
+      drawPlacementAt(placement, baseX, baseY, baseWidth, baseHeight, 1, 0)
     }
 
     for (const { placement, progress, mode } of animatingPlacements) {
@@ -493,6 +499,7 @@ export function MosaicCanvas({
       let drawWidth: number
       let drawHeight: number
       let alpha: number
+      let glowIntensity: number
 
       if (mode === 'local') {
         const eased = easeOutCubic(progress)
@@ -503,6 +510,7 @@ export function MosaicCanvas({
         drawX = baseX + (baseWidth - drawWidth) / 2
         drawY = baseY + (baseHeight - drawHeight) / 2
         alpha = eased
+        glowIntensity = progress < 0.78 ? 0.2 : 0
       } else {
         const aspectRatio = placement.asset.aspectRatio || 1
         const bigWidth = aspectRatio >= 1 ? bigSize : bigSize * aspectRatio
@@ -510,19 +518,21 @@ export function MosaicCanvas({
 
         if (progress < PHASE_APPEAR_END) {
           const localT = progress / PHASE_APPEAR_END
-          const eased = easeOutCubic(localT)
-          const scale = 0.5 + eased * 0.5
-          drawWidth = bigWidth * scale
-          drawHeight = bigHeight * scale
+          const easedScale = easeOutBack(localT)
+          const easedAlpha = easeOutCubic(localT)
+          drawWidth = bigWidth * easedScale
+          drawHeight = bigHeight * easedScale
           drawX = centerX - drawWidth / 2
           drawY = centerY - drawHeight / 2
-          alpha = eased
+          alpha = easedAlpha
+          glowIntensity = 1
         } else if (progress < PHASE_HOLD_END) {
           drawWidth = bigWidth
           drawHeight = bigHeight
           drawX = centerX - drawWidth / 2
           drawY = centerY - drawHeight / 2
           alpha = 1
+          glowIntensity = 0.7
         } else {
           const localT = (progress - PHASE_HOLD_END) / (1 - PHASE_HOLD_END)
           const eased = easeInOutCubic(localT)
@@ -533,6 +543,7 @@ export function MosaicCanvas({
           drawX = currentCenterX - drawWidth / 2
           drawY = currentCenterY - drawHeight / 2
           alpha = 1
+          glowIntensity = lerp(0.5, 0, eased)
         }
       }
 
@@ -543,7 +554,7 @@ export function MosaicCanvas({
         drawWidth,
         drawHeight,
         alpha,
-        mode === 'center' ? progress < 0.92 : progress < 0.78,
+        glowIntensity,
       )
     }
   })
