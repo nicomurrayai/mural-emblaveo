@@ -152,6 +152,38 @@ describe('buildMosaicPlacements', () => {
 
     expect(first.placements).toEqual(second.placements)
   })
+
+  it('keeps placement results deterministic even when cell sizes are not uniform', () => {
+    const cells = [
+      {
+        ...makeCell('cell-0-0', 28, 150, 92, 0, 0),
+        width: 1.8,
+        height: 1.2,
+      },
+      {
+        ...makeCell('cell-0-1', 20, 34, 94, 0, 2),
+        x: 2.1,
+        width: 0.9,
+        height: 1.2,
+      },
+      {
+        ...makeCell('cell-1-0', 120, 96, 36, 2, 0),
+        y: 2.4,
+        width: 1.4,
+        height: 0.8,
+      },
+    ]
+    const assets = [
+      makeAsset('photo-a', 28, 149, 91),
+      makeAsset('photo-b', 19, 36, 95, '2026-04-13T18:05:00.000Z'),
+      makeAsset('photo-c', 119, 97, 37, '2026-04-13T18:10:00.000Z'),
+    ]
+
+    const first = buildMosaicPlacements(cells, assets, { autoFillEmpty: true })
+    const second = buildMosaicPlacements(cells, assets, { autoFillEmpty: true })
+
+    expect(first.placements).toEqual(second.placements)
+  })
 })
 
 describe('mergeMosaicAssets', () => {

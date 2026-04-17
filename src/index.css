@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Azeret+Mono:wght@400;500&family=Manrope:wght@400;500;700;800&family=Unbounded:wght@400;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Azeret+Mono:wght@400;500&family=Manrope:wght@400;500;700;800&family=Montserrat:wght@700&family=Unbounded:wght@400;600;700&display=swap');
 
 :root {
   color-scheme: dark;
@@ -9,6 +9,7 @@
   --text-main: #edf0fb;
   --font-body: 'Manrope', sans-serif;
   --font-display: 'Unbounded', sans-serif;
+  --font-brand: 'Montserrat', sans-serif;
   --font-mono: 'Azeret Mono', monospace;
   font-family: var(--font-body);
   font-synthesis: none;

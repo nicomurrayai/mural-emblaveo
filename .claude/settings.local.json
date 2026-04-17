@@ -8,7 +8,8 @@
       "Bash(vercel link:*)",
       "Bash(vercel --prod --yes)",
       "Bash(npx eslint:*)",
-      "Bash(npm test:*)"
+      "Bash(npm test:*)",
+      "Bash(npx vitest *)"
     ]
   }
 }

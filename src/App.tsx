@@ -22,7 +22,13 @@ function App() {
   useEffect(() => {
     let cancelled = false
 
-    buildLogoGrid(logoPrimary)
+    buildLogoGrid(logoPrimary, {
+      fontFamily: 'Montserrat',
+      fontWeight: 700,
+      wordmarkHeightRatio: 0.48,
+      letterSpacingEm: 0.12,
+      gapRatio: 0.18,
+    })
       .then((grid) => {
         if (cancelled) {
           return

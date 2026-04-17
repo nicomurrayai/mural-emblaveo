@@ -179,7 +179,7 @@ function drawPlaceholder(
 ) {
   context.fillStyle = rgbToCss(darken(color, 0.56), 0.18)
   context.fillRect(x, y, width, height)
-  context.strokeStyle = rgbToCss(brighten(color, 0.08), 0.11)
+  context.strokeStyle = rgbToCss(brighten(color, 0.08), 0.08)
   context.lineWidth = 0.85
   context.strokeRect(x + 0.35, y + 0.35, width - 0.7, height - 0.7)
 }
@@ -463,11 +463,11 @@ export function MosaicCanvas({
       }
 
       context.shadowBlur = 0
-      context.fillStyle = rgbToCss(placement.cell.targetRgb, 0.06)
+      context.fillStyle = rgbToCss(placement.cell.targetRgb, 0.03)
       context.fillRect(drawX, drawY, drawWidth, drawHeight)
       context.strokeStyle = rgbToCss(
         brighten(placement.cell.targetRgb, 0.16),
-        0.2,
+        0.14,
       )
       context.lineWidth = 0.9
       context.strokeRect(
