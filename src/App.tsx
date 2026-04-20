@@ -93,18 +93,21 @@ function App() {
   return (
     <main className="mural-shell">
       <div className="mural-shell__chrome" aria-hidden="true" />
-      <MosaicCanvas
-        grid={logoGrid}
-        placements={placementState.placements}
-        onFpsChange={setFps}
-      />
 
       <header className="mural-title">
         <h1 className="mural-title__text">
           SUMATE A ESTA <span className="mural-title__accent">NUEVA ERA</span>{' '}
-          EN EL TRATAMIENTO DE INFECCIONES MULTIRESISTENTES
+          EN EL TRATAMIENTO DE INFECCIONES MULTIRESISTENTES<sup>1</sup>
         </h1>
       </header>
+
+      <div className="mural-shell__stage">
+        <MosaicCanvas
+          grid={logoGrid}
+          placements={placementState.placements}
+          onFpsChange={setFps}
+        />
+      </div>
 
       <footer className="mural-footer">
         <div className="mural-footer__bar">
@@ -129,6 +132,10 @@ function App() {
             </span>
           </button>
         </div>
+        <p className="mural-footer__disclaimer">
+          Referencia: 1. DaikosGL et al.Aztreonam-avibactam for serious infections by MBL-producingGram-negatives: Phase 3 trial (ASSEMBLE). JAC AntimicrobResist. 2025;7(4)
+          {' '}Resumen de seguridad: Emblaveo (Aztreonam/Avibactam) es una combinación de un monobactam con un inhibidor de betalactamasas, indicado para el tratamiento de las siguientes infecciones en pacientes adultos: Infección intraabdominal complicada (IIAc), Neumonía adquirida en el hospital (NAH), incluyendo neumonía asociada a ventilación mecánica (NAV), Infección del tracto urinario complicada (ITUc), incluyendo pielonefritis e infecciones causadas por microorganismos gramnegativos aerobios en pacientes adultos con opciones terapéuticas limitadas. Forma de administración: Vía intravenosa (IV), mediante perfusión IV durante 3 horas. Las reacciones adversas más frecuentes fueron anemia (6,9%), diarrea (6,2%), y elevación de la alanina aminotransferasa (ALT) (6,2%) y del aspartato aminotransferasa (AST) (5,2%), síndrome confusional, mareos, flebitis, erupción cutánea, náuseas y vómitos. Contraindicaciones: Hipersensibilidad a los principios activos o a alguno de los excipientes. Hipersensibilidad grave a cualquier otro tipo de antibiótico betalactámico. Embarazo: Aztreonam/avibactam solo debe utilizarse durante el embarazo cuando esté claramente indicado y solo si el beneficio para la madre supera el riesgo para el niño. Se desconoce si avibactam se excreta en la leche materna. Espectro de actividad: Aztreonam tiene poca o ninguna actividad frente a la mayoría de Acinetobacter spp., microorganismos grampositivos y anaerobios. Advertencias: Este medicamento contiene aproximadamente 44,6 mg de sodio por vial. La eliminación de aztreonam y avibactam está disminuida en pacientes con insuficiencia renal. Se necesita el ajuste de dosis en pacientes con un CrCl estimada ≤50 mL/min. No se requiere un ajuste de dosis en pacientes con insuficiencia renal leve (CrCl estimado &gt;50 a ≤80 mL/min). No se requiere un ajuste de dosis en función de la edad en estos añosos. No es necesario ajustar la dosis en pacientes con insuficiencia hepática. No se ha evaluado la farmacocinética de aztreonam/avibactam en los pacientes pediátricos. Con el uso de aztreonam se han notificado casos de: diarrea asociada a Clostridioides difficile (DACD) y de colitis pseudomembranosa; prolongación del tiempo de protrombina; posibilidad de obtener un resultado positivo en el test de Coombs directo o indirecto. Interacciones medicamentosas: Aztreonam no se metaboliza por las enzimas del citocromo P450. Probenecid (un inhibidor potente del OAT) inhibe la recaptación de avibactam en un 56% a 70% in vitro y, por tanto, puede alterar la eliminación de avibactam cuando se administra de forma concomitante.
+        </p>
       </footer>
 
       {!debugVisible && errorMessage ? (

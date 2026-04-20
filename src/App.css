@@ -3,9 +3,19 @@
   width: 100vw;
   height: 100vh;
   overflow: hidden;
+  display: flex;
+  flex-direction: column;
   background:
     radial-gradient(circle at top, rgba(18, 102, 75, 0.16), transparent 42%),
     linear-gradient(180deg, rgba(6, 8, 20, 0.88), rgba(3, 4, 10, 0.98));
+}
+
+.mural-shell__stage {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 0;
 }
 
 .mural-shell__chrome {
@@ -181,12 +191,17 @@
 
 .mural-title {
   position: absolute;
-  top: clamp(1.6rem, 3.5vh, 3rem);
+  top: 0;
   left: 0;
   right: 0;
+  width: 100%;
+  padding: clamp(1.6rem, 3.5vh, 3rem) 1rem 0.6rem;
+  box-sizing: border-box;
   display: flex;
   justify-content: center;
   pointer-events: none;
+  z-index: 2;
+  background: transparent;
 }
 
 .mural-title__text {
@@ -199,9 +214,8 @@
   white-space: nowrap;
   color: #f4f6ff;
   text-transform: uppercase;
-  text-shadow:
-    0 0 40px rgba(28, 173, 112, 0.45),
-    0 2px 12px rgba(0, 0, 0, 0.6);
+  background: transparent;
+  text-shadow: none;
 }
 
 .mural-title__accent {
@@ -210,18 +224,31 @@
 
 .mural-footer {
   position: absolute;
-  bottom: clamp(1.1rem, 3vh, 2rem);
-  left: 50%;
-  translate: -50% 0;
-  width: min(62rem, calc(100vw - 2rem));
-  max-width: calc(100vw - 2rem);
+  bottom: 0;
+  left: 0;
+  right: 0;
+  width: 100%;
+  padding: 0.6rem clamp(0.75rem, 2vw, 1.5rem) clamp(1.1rem, 3vh, 2rem);
+  box-sizing: border-box;
   pointer-events: none;
+  z-index: 2;
+  background: transparent;
 }
 
 .mural-footer__bar {
   position: relative;
   min-height: clamp(3.5rem, 6.8vh, 5.2rem);
   width: 100%;
+  pointer-events: auto;
+}
+
+.mural-footer__disclaimer {
+  margin: 0.4rem 0 0;
+  width: 100%;
+  text-align: left;
+  font-size: clamp(0.45rem, 0.7vw, 0.6rem);
+  line-height: 1.25;
+  color: rgba(255, 255, 255, 0.55);
   pointer-events: auto;
 }
 
@@ -431,8 +458,7 @@
   }
 
   .mural-footer {
-    bottom: 0.9rem;
-    width: calc(100vw - 1.8rem);
+    padding: 0.4rem 0.6rem 0.9rem;
   }
 
   .mural-footer__bar {
@@ -446,6 +472,6 @@
 
 @media (max-width: 680px) {
   .mural-footer {
-    width: calc(100vw - 1.2rem);
+    padding: 0.3rem 0.4rem 0.7rem;
   }
 }
