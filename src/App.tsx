@@ -23,11 +23,7 @@ function App() {
     let cancelled = false
 
     buildLogoGrid(logoPrimary, {
-      fontFamily: 'Montserrat',
-      fontWeight: 700,
-      wordmarkHeightRatio: 0.48,
-      letterSpacingEm: 0.12,
-      gapRatio: 0.18,
+      includeWordmark: false,
     })
       .then((grid) => {
         if (cancelled) {
@@ -105,7 +101,8 @@ function App() {
 
       <header className="mural-title">
         <h1 className="mural-title__text">
-          Súmate a esta nueva era en el tratamiento de infecciones multiresistentes
+          SUMATE A ESTA <span className="mural-title__accent">NUEVA ERA</span>{' '}
+          EN EL TRATAMIENTO DE INFECCIONES MULTIRESISTENTES
         </h1>
       </header>
 
@@ -116,26 +113,23 @@ function App() {
             alt="Pfizer"
             className="mural-footer__logo"
           />
+          <button
+            type="button"
+            className="mural-footer__switch"
+            onClick={() => {
+              setAutoFillEnabled((current) => !current)
+            }}
+            disabled={!canToggleAutoFill}
+            role="switch"
+            aria-checked={autoFillEnabled}
+            aria-label="Autocompletado del mural"
+          >
+            <span className="mural-footer__switch-track" aria-hidden="true">
+              <span className="mural-footer__switch-thumb" />
+            </span>
+          </button>
         </div>
       </footer>
-
-      <div className="mural-switch">
-        <button
-          type="button"
-          className="mural-footer__switch"
-          onClick={() => {
-            setAutoFillEnabled((current) => !current)
-          }}
-          disabled={!canToggleAutoFill}
-          role="switch"
-          aria-checked={autoFillEnabled}
-          aria-label="Autocompletado del mural"
-        >
-          <span className="mural-footer__switch-track" aria-hidden="true">
-            <span className="mural-footer__switch-thumb" />
-          </span>
-        </button>
-      </div>
 
       {!debugVisible && errorMessage ? (
         <aside className="mural-shell__toast" role="status">

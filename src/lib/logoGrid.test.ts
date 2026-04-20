@@ -2,6 +2,7 @@ import { fileURLToPath } from 'node:url'
 import sharp from 'sharp'
 import { describe, expect, it } from 'vitest'
 import {
+  buildIsotypeGridFromRaster,
   buildLogoGridFromRasters,
   composeLogoRaster,
   extractIsotipoRaster,
@@ -300,5 +301,44 @@ describe('buildLogoGridFromRasters', () => {
     expect(wordmarkCells).toBeGreaterThan(0)
     expect(grid.cells.length).toBeGreaterThan(400)
     expect(grid.cells.length).toBeLessThan(2500)
+  })
+})
+
+describe('buildIsotypeGridFromRaster', () => {
+  it('produce celdas activas y conserva las dimensiones del isotipo extraido', () => {
+    const raster = makeSyntheticIsotipoPng()
+    const extraction = extractIsotipoRaster(raster)
+    const grid = buildIsotypeGridFromRaster(raster)
+
+    expect(grid.cells.length).toBeGreaterThan(0)
+    expect(grid.width).toBe(extraction.raster.width)
+    expect(grid.height).toBe(extraction.raster.height)
+  })
+
+  it('elimina el footprint del wordmark cuando usa el PNG real', async () => {
+    const assetPath = fileURLToPath(
+      new URL('../assets/logo-primary.png', import.meta.url),
+    )
+    const { data, info } = await sharp(assetPath)
+      .ensureAlpha()
+      .raw()
+      .toBuffer({ resolveWithObject: true })
+    const raster = {
+      width: info.width,
+      height: info.height,
+      data: new Uint8ClampedArray(
+        data.buffer,
+        data.byteOffset,
+        data.byteLength,
+      ),
+    }
+
+    const extraction = extractIsotipoRaster(raster)
+    const grid = buildIsotypeGridFromRaster(raster)
+
+    expect(grid.cells.length).toBeGreaterThan(0)
+    expect(grid.width).toBe(extraction.raster.width)
+    expect(grid.height).toBe(extraction.raster.height)
+    expect(grid.width).toBeLessThan(raster.width)
   })
 })

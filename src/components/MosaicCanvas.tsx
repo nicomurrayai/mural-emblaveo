@@ -35,6 +35,13 @@ type Size = {
   height: number
 }
 
+type Frame = {
+  x: number
+  y: number
+  width: number
+  height: number
+}
+
 function containSize(
   sourceWidth: number,
   sourceHeight: number,
@@ -67,6 +74,32 @@ function easeOutBack(value: number) {
 
 function lerp(from: number, to: number, t: number) {
   return from + (to - from) * t
+}
+
+function insetTileFrame(
+  x: number,
+  y: number,
+  width: number,
+  height: number,
+): Frame {
+  const minDimension = Math.min(width, height)
+
+  if (minDimension <= 1.6) {
+    return { x, y, width, height }
+  }
+
+  const inset = Math.min(
+    Math.max(minDimension * 0.12, 0.18),
+    1.8,
+    minDimension * 0.24,
+  )
+
+  return {
+    x: x + inset,
+    y: y + inset,
+    width: Math.max(0.5, width - inset * 2),
+    height: Math.max(0.5, height - inset * 2),
+  }
 }
 
 function compareFillRevealOrder(
@@ -376,12 +409,19 @@ export function MosaicCanvas({
     drawLogoGlow(context, offsetX, offsetY, fittedLogo.width, fittedLogo.height)
 
     for (const cell of currentGrid.cells) {
-      drawPlaceholder(
-        context,
+      const frame = insetTileFrame(
         offsetX + cell.x * scaleX,
         offsetY + cell.y * scaleY,
         cell.width * scaleX,
         cell.height * scaleY,
+      )
+
+      drawPlaceholder(
+        context,
+        frame.x,
+        frame.y,
+        frame.width,
+        frame.height,
         cell.targetRgb,
       )
     }
@@ -480,19 +520,35 @@ export function MosaicCanvas({
     }
 
     for (const placement of settledPlacements) {
-      const baseX = offsetX + placement.cell.x * scaleX
-      const baseY = offsetY + placement.cell.y * scaleY
-      const baseWidth = placement.cell.width * scaleX
-      const baseHeight = placement.cell.height * scaleY
+      const frame = insetTileFrame(
+        offsetX + placement.cell.x * scaleX,
+        offsetY + placement.cell.y * scaleY,
+        placement.cell.width * scaleX,
+        placement.cell.height * scaleY,
+      )
 
-      drawPlacementAt(placement, baseX, baseY, baseWidth, baseHeight, 1, 0)
+      drawPlacementAt(
+        placement,
+        frame.x,
+        frame.y,
+        frame.width,
+        frame.height,
+        1,
+        0,
+      )
     }
 
     for (const { placement, progress, mode } of animatingPlacements) {
-      const baseX = offsetX + placement.cell.x * scaleX
-      const baseY = offsetY + placement.cell.y * scaleY
-      const baseWidth = placement.cell.width * scaleX
-      const baseHeight = placement.cell.height * scaleY
+      const baseFrame = insetTileFrame(
+        offsetX + placement.cell.x * scaleX,
+        offsetY + placement.cell.y * scaleY,
+        placement.cell.width * scaleX,
+        placement.cell.height * scaleY,
+      )
+      const baseX = baseFrame.x
+      const baseY = baseFrame.y
+      const baseWidth = baseFrame.width
+      const baseHeight = baseFrame.height
 
       let drawX: number
       let drawY: number

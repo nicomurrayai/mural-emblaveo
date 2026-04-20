@@ -74,13 +74,21 @@ export type IsotipoExtraction = {
   wordmarkColor: RGB
 }
 
-export type NormalizedLogoRaster = RasterWithMask & {
+type BaseNormalizedLogoRaster = RasterWithMask & {
   isotypeBounds: Bounds
-  wordmarkBounds: Bounds
   regionConfigs: RegionConfig[]
 }
 
+type WordmarkNormalizedLogoRaster = BaseNormalizedLogoRaster & {
+  wordmarkBounds: Bounds
+}
+
+export type NormalizedLogoRaster = BaseNormalizedLogoRaster & {
+  wordmarkBounds?: Bounds
+}
+
 export type BuildLogoGridOptions = {
+  includeWordmark?: boolean
   wordmarkText: string
   fontFamily: string
   fontWeight: number
@@ -567,7 +575,7 @@ export function composeLogoRaster(
   isotypeExtraction: IsotipoExtraction,
   wordmarkRaster: RasterSource,
   options: { gapPx?: number } = {},
-): NormalizedLogoRaster {
+): WordmarkNormalizedLogoRaster {
   const gap = Math.max(0, Math.round(options.gapPx ?? 16))
   const wordmarkSolid = extractSolidLogoMask(wordmarkRaster, {
     alphaThreshold: WORDMARK_MASK_ALPHA_THRESHOLD,
@@ -667,6 +675,35 @@ export function composeLogoRaster(
     isotypeBounds,
     wordmarkBounds,
     regionConfigs,
+  }
+}
+
+function buildIsotypeNormalizedRaster(
+  isotypeExtraction: IsotipoExtraction,
+): NormalizedLogoRaster {
+  const isotypeRaster = isotypeExtraction.raster
+  const isotypeBounds = createBounds(
+    0,
+    0,
+    isotypeRaster.width - 1,
+    isotypeRaster.height - 1,
+  )
+
+  return {
+    width: isotypeRaster.width,
+    height: isotypeRaster.height,
+    data: isotypeRaster.data,
+    mask: isotypeRaster.mask,
+    isotypeBounds,
+    regionConfigs: [
+      {
+        kind: 'isotype',
+        bounds: isotypeBounds,
+        maxDepth: ISOTYPE_MAX_SUBDIVISION_DEPTH,
+        directAcceptCoverage: ISOTYPE_DIRECT_ACCEPT_COVERAGE,
+        activeCoverage: ISOTYPE_ACTIVE_COVERAGE,
+      },
+    ],
   }
 }
 
@@ -870,6 +907,12 @@ export function buildLogoGridFromRasters(
   return buildLogoGridFromNormalized(normalized)
 }
 
+export function buildIsotypeGridFromRaster(pngRaster: RasterSource) {
+  const isotypeExtraction = extractIsotipoRaster(pngRaster)
+  const normalized = buildIsotypeNormalizedRaster(isotypeExtraction)
+  return buildLogoGridFromNormalized(normalized)
+}
+
 async function loadImageRaster(source: string): Promise<RasterSource> {
   const image = await loadImage(source)
   const canvas = document.createElement('canvas')
@@ -900,6 +943,7 @@ export async function buildLogoGrid(
   overrides: Partial<BuildLogoGridOptions> = {},
 ): Promise<LogoGrid> {
   const options: BuildLogoGridOptions = {
+    includeWordmark: overrides.includeWordmark ?? true,
     wordmarkText: overrides.wordmarkText ?? DEFAULT_WORDMARK_TEXT,
     fontFamily: overrides.fontFamily ?? DEFAULT_FONT_FAMILY,
     fontWeight: overrides.fontWeight ?? DEFAULT_FONT_WEIGHT,
@@ -912,6 +956,12 @@ export async function buildLogoGrid(
 
   const pngRaster = await loadImageRaster(source)
   const isotypeExtraction = extractIsotipoRaster(pngRaster)
+
+  if (options.includeWordmark === false) {
+    const normalized = buildIsotypeNormalizedRaster(isotypeExtraction)
+    return buildLogoGridFromNormalized(normalized)
+  }
+
   const isotypeHeight = isotypeExtraction.raster.height
   const isotypeWidth = isotypeExtraction.raster.width
 
