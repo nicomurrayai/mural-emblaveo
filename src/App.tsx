@@ -97,7 +97,7 @@ function App() {
       <header className="mural-title">
         <h1 className="mural-title__text">
           SUMATE A ESTA <span className="mural-title__accent">NUEVA ERA</span>{' '}
-          EN EL TRATAMIENTO DE INFECCIONES MULTIRESISTENTES
+          EN EL TRATAMIENTO DE INFECCIONES MULTIRESISTENTES<sup className='sup'>1</sup>
         </h1>
       </header>
 
