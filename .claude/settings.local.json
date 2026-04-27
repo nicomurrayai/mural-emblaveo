@@ -9,7 +9,10 @@
       "Bash(vercel --prod --yes)",
       "Bash(npx eslint:*)",
       "Bash(npm test:*)",
-      "Bash(npx vitest *)"
+      "Bash(npx vitest *)",
+      "Bash(echo \"tsc exit: $?\")",
+      "Bash(echo \"eslint exit: $?\")",
+      "Bash(git stash *)"
     ]
   }
 }

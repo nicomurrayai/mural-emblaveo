@@ -5,6 +5,10 @@ const REUSE_TOP_CANDIDATE_COUNT = 12
 const REUSE_USAGE_PENALTY = 16
 const REUSE_PROXIMITY_RADIUS = 6
 const REUSE_PROXIMITY_PENALTY = 24
+const PRIORITY_INITIAL_POOL = 8
+const PRIORITY_GROWTH_PER_ASSET = 4
+const SPREAD_PROXIMITY_RADIUS = 8
+const SPREAD_PROXIMITY_PENALTY = 6
 
 export type BuildMosaicPlacementsOptions = {
   autoFillEmpty?: boolean
@@ -91,6 +95,42 @@ function buildPlacement(
 
 function manhattanDistance(left: MosaicCell, right: MosaicCell) {
   return Math.abs(left.row - right.row) + Math.abs(left.column - right.column)
+}
+
+function cellArea(cell: MosaicCell) {
+  return cell.width * cell.height
+}
+
+function compareCellsBySize(left: MosaicCell, right: MosaicCell) {
+  const leftArea = cellArea(left)
+  const rightArea = cellArea(right)
+
+  if (leftArea !== rightArea) {
+    return rightArea - leftArea
+  }
+
+  return compareCells(left, right)
+}
+
+function progressivePoolSize(assetIndex: number, totalCells: number) {
+  return Math.min(
+    PRIORITY_INITIAL_POOL + assetIndex * PRIORITY_GROWTH_PER_ASSET,
+    totalCells,
+  )
+}
+
+function spreadPenaltyForCell(cell: MosaicCell, placements: MosaicPlacement[]) {
+  let penalty = 0
+
+  for (const placement of placements) {
+    const distance = manhattanDistance(cell, placement.cell)
+
+    if (distance < SPREAD_PROXIMITY_RADIUS) {
+      penalty += (SPREAD_PROXIMITY_RADIUS - distance) * SPREAD_PROXIMITY_PENALTY
+    }
+  }
+
+  return penalty
 }
 
 function scoreReuseCandidate(
@@ -247,22 +287,40 @@ export function buildMosaicPlacements(
   const workingCells = cells.map((cell) => ({ ...cell }))
   const placements: MosaicPlacement[] = []
 
-  for (const asset of orderedAssets) {
+  const cellIndicesBySize = workingCells
+    .map((_, index) => index)
+    .sort((leftIndex, rightIndex) =>
+      compareCellsBySize(workingCells[leftIndex], workingCells[rightIndex]),
+    )
+
+  for (let assetIndex = 0; assetIndex < orderedAssets.length; assetIndex += 1) {
+    const asset = orderedAssets[assetIndex]
+    const poolSize = progressivePoolSize(assetIndex, workingCells.length)
+
     let bestIndex = -1
     let bestScore = Number.POSITIVE_INFINITY
+    let consideredCount = 0
 
-    for (let index = 0; index < workingCells.length; index += 1) {
-      const cell = workingCells[index]
+    for (const cellIndex of cellIndicesBySize) {
+      if (consideredCount >= poolSize) {
+        break
+      }
+
+      const cell = workingCells[cellIndex]
 
       if (!cell || cell.occupiedByPhotoId) {
         continue
       }
 
-      const score = scoreAssetForCell(asset, cell)
+      consideredCount += 1
 
-      if (score < bestScore) {
-        bestScore = score
-        bestIndex = index
+      const colorScore = scoreAssetForCell(asset, cell)
+      const spreadPenalty = spreadPenaltyForCell(cell, placements)
+      const totalScore = colorScore + spreadPenalty
+
+      if (totalScore < bestScore) {
+        bestScore = totalScore
+        bestIndex = cellIndex
       }
     }
 
